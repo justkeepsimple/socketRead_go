@@ -1,15 +1,14 @@
 package app
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
-	"sync"
 )
 
-
 type MsgNo int
+
 const (
 	HeartBeat MsgNo = iota
 	Go
@@ -23,12 +22,11 @@ type Message struct {
 
 var (
 	HeartBeatMsg = &Message{MsgNo: HeartBeat}
-	GoMsg = &Message{MsgNo: Go}
+	GoMsg        = &Message{MsgNo: Go}
 )
 
 type SlaveProcessMaster struct {
-	conn        net.Conn
-	sendMsgLock sync.Mutex
+	conn net.Conn
 }
 
 func NewSlaveProcessMaster(conn net.Conn) *SlaveProcessMaster {
@@ -38,30 +36,21 @@ func NewSlaveProcessMaster(conn net.Conn) *SlaveProcessMaster {
 	return ret
 }
 
-
 func (s *SlaveProcessMaster) ProcessMasterMsg() {
-	if s.conn != nil {
-		for {
-			rBuf := make([]byte, ReadBufferSize)
-			read, err := s.conn.Read(rBuf)
-			if err != nil {
-				os.Exit(-1)
-			}
+	br := bufio.NewReader(s.conn)
+	dec := json.NewDecoder(br)
+	for {
+		var content Message
+		err := dec.Decode(&content)
+		if err != nil {
+			panic(err)
+		}
 
-			content := &Message{}
-
-			errDes := json.Unmarshal(rBuf[0:read], content)
-			if errDes != nil {
-				fmt.Println(string(rBuf[0:read]))
-				panic(errDes)
-			}
-
-			switch content.MsgNo {
-			case Go:
-				fmt.Println("slave go")
-			case HeartBeat:
-				fmt.Println("heart beat")
-			}
+		switch content.MsgNo {
+		case Go:
+			fmt.Println("slave go")
+		case HeartBeat:
+			fmt.Println("heart beat")
 		}
 	}
 }
